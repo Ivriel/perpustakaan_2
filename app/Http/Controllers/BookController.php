@@ -6,6 +6,7 @@ use App\Models\Book;
 use App\Models\Category;
 use App\Models\Rack;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class BookController extends Controller
 {
@@ -14,10 +15,10 @@ class BookController extends Controller
      */
     public function index()
     {
-        $data = Book::with(['rack', 'categories']);
+        $books = Book::with(['rack', 'categories'])->get();
 
         return view('books.index', [
-            'data' => $data,
+            'books' => $books,
         ]);
     }
 
@@ -26,9 +27,11 @@ class BookController extends Controller
      */
     public function create()
     {
+        $categories = Category::all();
         $racks = Rack::all();
 
         return view('books.create', [
+            'categories' => $categories,
             'racks' => $racks,
         ]);
     }
@@ -38,7 +41,34 @@ class BookController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validatedData = $request->validate([
+            'isbn' => 'required|string|max:20|unique:books,isbn',
+            'rack_id' => 'required|exists:racks,id',
+            'categories' => 'required|array|min:1',
+            'categories.*' => 'exists:categories,id',
+            'title' => 'required|string',
+            'author' => 'required|string',
+            'publisher' => 'required|string',
+            'publication_year' => 'required|digits:4',
+            'pages' => 'required|integer',
+            'stock' => 'required|integer|min:1',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'description' => 'required|string',
+        ], [
+            'isbn.unique' => 'ISBN ini sudah terdaftar di sistem. Gunakan ISBN lain.',
+        ]);
+
+        if ($request->hasFile('cover_image')) {
+            $imagePath = $request->file('cover_image')->store('cover_image', 'public');
+            $validatedData['cover_image'] = $imagePath;
+        } else {
+            unset($validatedData['cover_image']);
+        }
+
+        $book = Book::create(collect($validatedData)->except('categories')->all());
+        $book->categories()->sync($request->input('categories', []));
+
+        return redirect()->route('books.index')->with('success', 'Buku baru berhasil dibuat');
     }
 
     /**
@@ -46,7 +76,11 @@ class BookController extends Controller
      */
     public function show(string $id)
     {
-        //
+        $book = Book::with(['rack', 'categories'])->findOrFail($id);
+
+        return view('books.show', [
+            'book' => $book,
+        ]);
     }
 
     /**
@@ -58,7 +92,7 @@ class BookController extends Controller
         $racks = Rack::all();
         $categories = Category::all();
 
-        return view('racks.edit', [
+        return view('books.edit', [
             'racks' => $racks,
             'book' => $book,
             'categories' => $categories,
@@ -70,7 +104,35 @@ class BookController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $book = Book::findOrFail($id);
+        $validatedData = $request->validate([
+            'isbn' => 'required|string|max:20|unique:books,isbn,'.$book->id,
+            'rack_id' => 'required|exists:racks,id',
+            'categories' => 'required|array|min:1',
+            'categories.*' => 'exists:categories,id',
+            'title' => 'required|string',
+            'author' => 'required|string',
+            'publisher' => 'required|string',
+            'publication_year' => 'required|digits:4',
+            'pages' => 'required|integer',
+            'stock' => 'required|integer|min:1',
+            'cover_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'description' => 'required|string',
+        ]);
+
+        $data = collect($validatedData)->except(['cover_image', 'categories'])->toArray();
+
+        if ($request->hasFile('cover_image')) {
+            if ($book->cover_image) {
+                Storage::disk('public')->delete($book->cover_image);
+            }
+            $data['cover_image'] = $request->file('cover_image')->store('cover_image', 'public');
+        }
+
+        $book->update($data);
+        $book->categories()->sync($request->input('categories', []));
+
+        return redirect()->route('books.index')->with('success','Berhasil memperbarui data buku');
     }
 
     /**
@@ -81,6 +143,6 @@ class BookController extends Controller
         $book = Book::findOrFail($id);
         $book->delete();
 
-        return redirect()->route('book.index')->with('success', 'Berhasil menghapus buku');
+        return redirect()->route('books.index')->with('success', 'Berhasil menghapus buku');
     }
 }

@@ -38,13 +38,17 @@
                             <x-input-error class="mt-2" :messages="$errors->get('location')" />
                         </div>
 
-                        <textarea id="note" name="note" rows="4"
-                            class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
-                            placeholder="Tambahkan keterangan tambahan jika perlu...">{{ old('note', $rack->note) }}</textarea>
-                        <div class="flex items-center gap-4">
-                            <x-primary-button>
-                                {{ __('Simpan Rak') }}
-                            </x-primary-button>
+                        <div>
+
+                            <x-input-label for="note" :value="__('Catatan')" />
+                            <textarea id="note" name="note" rows="4"
+                                class="mt-1 block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 dark:focus:border-indigo-600 focus:ring-indigo-500 dark:focus:ring-indigo-600 rounded-md shadow-sm"
+                                placeholder="Tambahkan keterangan tambahan jika perlu...">{{ old('note', $rack->note) }}</textarea>
+                            <div class="flex items-center gap-4">
+                                <x-primary-button>
+                                    {{ __('Simpan Rak') }}
+                                </x-primary-button>
+                            </div>
 
                             <a href="{{ route('racks.index') }}"
                                 class="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition">

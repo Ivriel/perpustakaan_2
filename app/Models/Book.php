@@ -17,14 +17,11 @@ class Book extends Model
     protected static function booted()
     {
         static::creating(function ($book) {
-            if (empty($book->book_code)) { // boleh isi manual. jadi kalau belum di set, ini baru otomatis jalan
-                // Ambil data buku terakhir untuk mendapatkan nomor urut
-                $lastBook = static::orderBy('id', 'desc')->first();
-                $number = $lastBook ? $lastBook->id + 1 : 1; // Jika $lastBook ada (sudah ada buku): $number = $lastBook->id + 1 (nomor urut = id terakhir + 1).
-                // Jika $lastBook null (belum ada buku): $number = 1.
-
-                $book->book_code = 'BOK-'.str_pad($number, 4, '0', STR_PAD_LEFT);
-            }
+            // Ambil data buku terakhir untuk mendapatkan nomor urut
+            $lastBook = static::orderBy('id', 'desc')->first();
+            $number = $lastBook ? $lastBook->id + 1 : 1; // Jika $lastBook ada (sudah ada buku): $number = $lastBook->id + 1 (nomor urut = id terakhir + 1).
+            // Jika $lastBook null (belum ada buku): $number = 1.
+            $book->book_code = 'BOK-'.str_pad($number, 4, '0', STR_PAD_LEFT);
         });
     }
 
