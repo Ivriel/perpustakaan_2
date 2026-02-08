@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Book;
 use App\Models\Loan;
 use App\Models\LoanDetail;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +20,7 @@ class LoanController extends Controller
         // Visitor: lihat peminjaman sendiri. Staff/Admin: lihat semua.
         if (Auth::user()->role === 'visitor') {
             $loans = Loan::where('user_id', Auth::id())
-                ->with('details.book')
+                ->with('details.book', 'user')
                 ->latest()
                 ->get();
         } else {
@@ -29,6 +30,13 @@ class LoanController extends Controller
         }
 
         return view('loans.index', compact('loans'));
+    }
+
+    public function show(string $id)
+    {
+        $loan = Loan::with('user', 'details.book.categories', 'details.book.rack')->findOrFail($id);
+
+        return view('loans.show', compact('loan'));
     }
 
     public function cart()
@@ -210,5 +218,21 @@ class LoanController extends Controller
 
             return back()->with('error', 'Gagal: '.$e->getMessage());
         }
+    }
+
+    public function printReceipt($id)
+    {
+        $loan = Loan::with('user', 'details.book.categories', 'details.book.rack')->findOrFail($id);
+        $data = [
+            'loan' => $loan,
+            'tanggal_dicetak' => now()->format('d/m/Y H:i:s'),
+            'loan_date_formatted' => \Carbon\Carbon::parse($loan->loan_date)->format('d/m/Y'),
+            'due_date_formatted' => \Carbon\Carbon::parse($loan->due_date)->format('d/m/Y'),
+            'return_date_formatted' => $loan->return_date ? \Carbon\Carbon::parse($loan->return_date)->format('d/m/Y') : null,
+        ];
+        $pdf = Pdf::loadView('loans.receipt', $data);
+        $pdf->setPaper([0, 0, 600, 800], 'portrait');
+
+        return $pdf->stream('bukti-peminjaman-perpus-v2-#'.$loan->id.'.pdf');
     }
 }

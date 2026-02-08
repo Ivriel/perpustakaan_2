@@ -32,6 +32,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/loans/cart/add/{book}', [LoanController::class, 'addToCart'])->name('loans.cart.add');
     Route::delete('/loans/cart/remove/{book}', [LoanController::class, 'removeFromCart'])->name('loans.cart.remove');
     Route::post('/loans/checkout', [LoanController::class, 'checkout'])->name('loans.checkout');
+    Route::get('/loans/{id}', [LoanController::class, 'show'])->name('loans.show');
+    Route::get('/loans/printReceipt/{id}', [LoanController::class, 'printReceipt'])->name('loans.printReceipt');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
