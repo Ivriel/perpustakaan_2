@@ -1,0 +1,168 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Book;
+use App\Models\Loan;
+use App\Models\LoanDetail;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+
+// Tujuan: Tampilkan halaman keranjang peminjaman
+// Dipanggil saat user buka URL /loans/cart
+
+class LoanController extends Controller
+{
+    public function index()
+    {
+        // Visitor: lihat peminjaman sendiri. Staff/Admin: lihat semua.
+        if (Auth::user()->role === 'visitor') {
+            $loans = Loan::where('user_id', Auth::id())
+                ->with('details.book')
+                ->latest()
+                ->get();
+        } else {
+            $loans = Loan::with('details.book', 'user')
+                ->latest()
+                ->get();
+        }
+
+        return view('loans.index', compact('loans'));
+    }
+
+    public function cart()
+    {
+
+        // Ambil cart dari session. Kalau belum ada, pakai array kosong.
+        $cart = session('loan_cart', []);
+
+        // Hitung jumlah per buku. Contoh: 2 Laskar Pelangi + 1 Bumi → [3=>2, 7=>1]
+        $quantities = array_count_values(array_column($cart, 'book_id'));
+
+        // Ambil semua book_id dari cart. Contoh: [3, 3, 7]
+        $bookIds = array_column($cart, 'book_id');
+
+        // Query buku yang id-nya ada di cart. whereIn tetap jalan meski ada duplikat.
+        $books = Book::whereIn('id', $bookIds)->get();
+
+        // Kirim $books dan $quantities ke view untuk ditampilkan.
+        return view('loans.cart', compact('books', 'quantities'));
+
+    }
+
+    public function addToCart(Book $book)
+    {
+        // --- Ambil cart yang ada ---
+        $cart = session('loan_cart', []);
+
+        // --- Tambah 1 item baru ke array ---
+        // $cart[] = [...] artinya push 1 elemen ke akhir array
+        // Buku sama boleh ditambah berkali-kali = 1 eksemplar per push
+        $cart[] = [
+            'book_id' => $book->id, // id buku (dari database)
+            'title' => $book->title, // judul (untuk display di view, opsional)
+        ];
+
+        // --- Simpan cart baru ke session ---
+        // session(['key' => value]) = tulis/update session
+        // Session = tempat simpan data sementara per user (hilang kalau logout/clear)
+        session(['loan_cart' => $cart]);
+
+        // --- Redirect ke halaman sebelumnya ---
+        // back() = kembali ke URL sebelumnya (misal: dari detail buku)
+        // with('success', '...') = flash message, bisa ditampilkan di view pakai session('success')
+        return back()->with('success', 'Buku ditambahkan ke keranjang.');
+    }
+
+    // ============================================
+    // METHOD: removeFromCart(Book $book)
+    // ============================================
+    // Tujuan: Hapus 1 eksemplar buku dari cart (bukan semua)
+    // Kalau ada 3 kopi Laskar Pelangi, klik hapus = sisa 2
+    // ============================================
+
+    public function removeFromCart(Book $book)
+    {
+        $cart = session('loan_cart', []);
+        // --- Cari index item PERTAMA yang book_id-nya sama ---
+        // array_column($cart, 'book_id') = [1, 1, 2] (urutan book_id di cart)
+        // array_search($book->id, ...) = cari index/posisi pertama yang nilainya = $book->id
+        // Hasil: index angka (0, 1, 2...) atau false kalau tidak ketemu
+
+        // array_search: $needle = nilai yang dicari $haystack = array tempat mencari
+        $key = array_search($book->id, array_column($cart, 'book_id'));
+        // --- Kalau ketemu, hapus 1 elemen itu saja ---
+        if ($key !== false) {
+            // unset($cart[$key]) = hapus elemen di index $key
+            // Contoh: $cart = [A, B, C], unset($cart[1]) → $cart = [A, C] (index 1 hilang)
+            unset($cart[$key]);
+            // array_values($cart) = ambil nilai array saja, buang key-nya, buat index baru 0,1,2...
+            // Penting: kadang unset bikin index "bolong" [0=>A, 2=>C], array_values rapikan jadi [0=>A, 1=>C]
+            // setelah unset, index bisa loncat. array_values() membuat index rapi untuk dipakai lagi (misalnya di session / tampilan).
+            $cart = array_values($cart);
+        }
+        session(['loan_cart' => $cart]);
+
+        return back()->with('success', '1 eksemplar dihapus dari keranjang.');
+    }
+
+    // ============================================
+    // METHOD: checkout(Request $request)
+    // ============================================
+    // Tujuan: Proses peminjaman = buat 1 Loan + banyak LoanDetail
+    // $request = data dari form (tanggal pinjam, due date, dll)
+    public function checkout(Request $request)
+    {
+        // --- VALIDASI: Cek input dari form ---
+        // validate() = cek rules, kalau gagal otomatis redirect back + error
+        // Kalau lolos, return array data yang sudah divalidasi
+        $validated = $request->validate([
+            'loan_date' => 'required|date',
+            'due_date' => 'required|date|after_or_equal:loan_date',
+        ], [
+            'loan_date.required' => 'Tanggal pinjam wajib diisi.',
+            'due_date.required' => 'Tanggal jatuh tempo wajib diisi.',
+        ]);
+        // --- Ambil cart ---
+        $cart = session('loan_cart', []);
+        // --- Cek cart tidak boleh kosong ---
+        // empty($cart) = true kalau array kosong []
+        if (empty($cart)) {
+            return back()->with('error', 'Keranjang kosong. Tambah buku dulu.');
+        }
+
+        try {
+            DB::beginTransaction();
+            // --- BUAT 1 RECORD LOAN ---
+            // Loan::create([...]) = INSERT INTO loans (...) VALUES (...)
+            $loan = Loan::create([
+                'user_id' => Auth::id(),
+                'loan_date' => $validated['loan_date'],
+                'due_date' => $validated['due_date'],
+                'return_date' => null,
+                'fine_amount' => 0,
+                'status' => 'pending',
+            ]);
+
+            foreach ($cart as $item) {
+                LoanDetail::create([
+                    'loan_id' => $loan->id,
+                    'book_id' => $item['book_id'],
+                    'condition' => 'good',
+                ]);
+            }
+            session()->forget('loan_cart');
+
+            // --- Redirect ke halaman daftar loan ---
+            // route('loans.index') = URL berdasarkan nama route (cek di web.php)
+            DB::commit();
+
+            return redirect()->route('loans.index')->with('success', 'Peminjaman berhasil diajukan.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Peminjaman gagal: '.$e->getMessage());
+        }
+    }
+}

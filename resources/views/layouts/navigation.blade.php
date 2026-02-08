@@ -38,6 +38,10 @@
                         {{ __('Collection') }}
                     </x-nav-link>
 
+                    <x-nav-link :href="route('loans.index')" :active="request()->routeIs('loans.*')">
+                        {{ __('Peminjaman') }}
+                    </x-nav-link>
+
                 </div>
             </div>
 
