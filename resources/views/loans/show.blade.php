@@ -90,6 +90,11 @@
                         <p class="text-lg font-bold text-gray-800 dark:text-gray-200">{{ $loan->details->count() }} Buku
                         </p>
                     </div>
+                    {{-- CATATAN: Jika ada total_amount di model Loan (sistem berbayar) --}}
+                    {{-- <div>
+                        <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Total Bayar</p>
+                        <p class="text-lg font-bold text-indigo-600 dark:text-indigo-400">Rp {{ number_format($loan->total_amount ?? 0, 0, ',', '.') }}</p>
+                    </div> --}}
                 </div>
             </div>
 
@@ -166,6 +171,11 @@
                                         <p class="text-sm font-bold text-emerald-600 dark:text-emerald-400 capitalize">
                                             {{ $detail->condition }}</p>
                                     </div>
+                                    {{-- CATATAN: Jika loan punya harga per item / subtotal (kolom di loan_details atau books) --}}
+                                    {{-- <div>
+                                        <p class="text-[10px] font-black text-gray-400 uppercase mb-1">Subtotal</p>
+                                        <p class="text-sm font-bold text-gray-700 dark:text-gray-300">Rp {{ number_format($detail->subtotal ?? ($detail->unit_price ?? 0) * ($detail->quantity ?? 1), 0, ',', '.') }}</p>
+                                    </div> --}}
                                 </div>
 
                                 @if($detail->book->rack)

@@ -45,6 +45,8 @@
                                 <div>
                                     <span class="font-medium text-gray-900 dark:text-white">{{ $book->title }}</span>
                                     <span class="text-gray-500 dark:text-gray-400 ml-2">× {{ $quantities[$book->id] ?? 1 }}</span>
+                                    {{-- CATATAN: Contoh tampilan jika ada harga & subtotal (dari controller: $subtotals, $grandTotal) --}}
+                                    {{-- <span class="text-gray-500 dark:text-gray-400 ml-2">@ Rp {{ number_format($book->price ?? 0, 0, ',', '.') }} = Rp {{ number_format($subtotals[$book->id] ?? 0, 0, ',', '.') }}</span> --}}
                                 </div>
                                 {{-- Form hapus: POST ke route dengan method DELETE --}}
                                 <form action="{{ route('loans.cart.remove', $book) }}" method="POST" class="inline">
@@ -57,6 +59,11 @@
                             </li>
                         @endforeach
                     </ul>
+                    {{-- CATATAN: Blok total jika sistem pakai harga. Controller kirim $grandTotal. --}}
+                    {{-- <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-between font-bold text-gray-900 dark:text-white">
+                        <span>Total</span>
+                        <span>Rp {{ number_format($grandTotal ?? 0, 0, ',', '.') }}</span>
+                    </div> --}}
                 </div>
 
                 {{-- Form checkout: tanggal pinjam, due date, submit --}}
@@ -64,6 +71,9 @@
                     <h3 class="font-bold text-gray-800 dark:text-white mb-4">Selesaikan Peminjaman</h3>
                     <form action="{{ route('loans.checkout') }}" method="POST">
                         @csrf
+                        {{-- CATATAN: Jika ada total bayar, bisa tampilkan read-only atau hidden input untuk konfirmasi --}}
+                        {{-- <input type="hidden" name="total_amount" value="{{ $grandTotal ?? 0 }}"> --}}
+                        {{-- atau tampilkan: <p>Total: Rp {{ number_format($grandTotal ?? 0, 0, ',', '.') }}</p> --}}
                         <div class="grid gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tanggal Pinjam</label>

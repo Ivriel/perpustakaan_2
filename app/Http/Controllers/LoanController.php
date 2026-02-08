@@ -54,6 +54,20 @@ class LoanController extends Controller
         // Query buku yang id-nya ada di cart. whereIn tetap jalan meski ada duplikat.
         $books = Book::whereIn('id', $bookIds)->get();
 
+        // ----- CATATAN: Jika ada harga, hitung subtotal per buku dan total keseluruhan -----
+        // Persyaratan DB: tabel books punya kolom price; tabel loan_details (unit_price, quantity, subtotal); tabel loans (total_amount).
+        // Subtotal = harga per buku × jumlah. Total = jumlah semua subtotal.
+        // $subtotals = [];  // key = book_id, value = subtotal (price * qty)
+        // $grandTotal = 0;
+        // foreach ($books as $book) {
+        //     $qty = $quantities[$book->id] ?? 1;
+        //     $price = $book->price ?? 0;  // asumsi Book punya atribut price
+        //     $subtotal = $price * $qty;
+        //     $subtotals[$book->id] = $subtotal;
+        //     $grandTotal += $subtotal;
+        // }
+        // return view('loans.cart', compact('books', 'quantities', 'subtotals', 'grandTotal'));
+
         // Kirim $books dan $quantities ke view untuk ditampilkan.
         return view('loans.cart', compact('books', 'quantities'));
 
@@ -61,7 +75,11 @@ class LoanController extends Controller
 
     public function addToCart(Book $book)
     {
-        // --- Ambil cart yang ada ---
+        // --- Ambil cart yang ada (atau array kosong kalau belum pernah di-set) ---
+        // session('loan_cart', []) = BACA session dengan key 'loan_cart'.
+        //   - Kalau key 'loan_cart' belum ada (user belum pernah add to cart) → kembalikan [] (nilai default).
+        //   - Kalau sudah ada (user sudah pernah tambah buku) → kembalikan isi session itu (array of items).
+        // Jadi array itu BUKAN "tiba-tiba dari mana": kita yang bikin (kosong dulu) atau ambil yang sudah tersimpan.
         $cart = session('loan_cart', []);
 
         // --- Tambah 1 item baru ke array ---
@@ -70,11 +88,15 @@ class LoanController extends Controller
         $cart[] = [
             'book_id' => $book->id, // id buku (dari database)
             'title' => $book->title, // judul (untuk display di view, opsional)
+            // ----- CATATAN: Jika sistem pakai harga (bukan perpus gratis), simpan juga harga per item -----
+            // 'price' => $book->price,  // asumsi tabel books punya kolom price (decimal/integer)
         ];
 
-        // --- Simpan cart baru ke session ---
-        // session(['key' => value]) = tulis/update session
-        // Session = tempat simpan data sementara per user (hilang kalau logout/clear)
+        // --- Simpan cart baru ke session (ini yang "memasukkan" array ke session) ---
+        // session(['loan_cart' => $cart]) = TULIS/UPDATE session: key 'loan_cart' sekarang berisi $cart.
+        // Pertama kali add to cart: $cart = [ item1 ]. Setelah ini, session punya loan_cart = [ item1 ].
+        // Add to cart lagi: session('loan_cart', []) baca [ item1 ], kita push item2, lalu session di-set lagi = [ item1, item2 ].
+        // Session = tempat simpan data sementara per user (hilang kalau logout/clear browser).
         session(['loan_cart' => $cart]);
 
         // --- Redirect ke halaman sebelumnya ---
@@ -125,6 +147,8 @@ class LoanController extends Controller
         // --- VALIDASI: Cek input dari form ---
         // validate() = cek rules, kalau gagal otomatis redirect back + error
         // Kalau lolos, return array data yang sudah divalidasi
+        // ----- CATATAN: Jika ada total bayar, bisa validasi atau konfirmasi dari form -----
+        // $request->validate(['total_amount' => 'nullable|numeric|min:0', ...]);
         $validated = $request->validate([
             'loan_date' => 'required|date',
             'due_date' => 'required|date|after_or_equal:loan_date',
@@ -144,6 +168,7 @@ class LoanController extends Controller
             DB::beginTransaction();
             // --- BUAT 1 RECORD LOAN ---
             // Loan::create([...]) = INSERT INTO loans (...) VALUES (...)
+            // ----- CATATAN: Jika pakai total_amount, tambah kolom total_amount di tabel loans (migration) -----
             $loan = Loan::create([
                 'user_id' => Auth::id(),
                 'loan_date' => $validated['loan_date'],
@@ -151,15 +176,28 @@ class LoanController extends Controller
                 'return_date' => null,
                 'fine_amount' => 0,
                 'status' => 'pending',
+                // 'total_amount' => 0,  // nanti di-update setelah loop di bawah
             ]);
 
+            // ----- CATATAN: Jika pakai unit_price/quantity/subtotal di LoanDetail, hitung dulu: $quantities = array_count_values(array_column($cart, 'book_id')); -----
             foreach ($cart as $item) {
                 LoanDetail::create([
                     'loan_id' => $loan->id,
                     'book_id' => $item['book_id'],
                     'condition' => 'good',
+                    // ----- CATATAN: Jika sistem berbayar, simpan harga & subtotal per detail (tambah kolom di tabel loan_details) -----
+                    // 'unit_price' => $item['price'] ?? 0,
+                    // 'quantity' => 1,  // di design sekarang 1 item cart = 1 eksemplar. Kalau grup per buku: pakai $quantities[$item['book_id']]
+                    // 'subtotal' => ($item['price'] ?? 0) * 1,  // atau * ($quantities[$item['book_id']] ?? 1) kalau quantity per baris > 1
                 ]);
             }
+            // ----- CATATAN: Total bayar bisa disimpan di Loan (misal kolom total_amount) -----
+            // $quantities = array_count_values(array_column($cart, 'book_id'));
+            // $totalAmount = 0;
+            // foreach ($cart as $item) {
+            //     $totalAmount += ($item['price'] ?? 0);  // 1 item = 1 eksemplar, price sudah per item
+            // }
+            // $loan->update(['total_amount' => $totalAmount]);
             session()->forget('loan_cart');
 
             // --- Redirect ke halaman daftar loan ---

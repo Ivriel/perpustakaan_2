@@ -364,12 +364,16 @@
         <div class="info-section">
             <h3>Daftar Buku Dipinjam</h3>
             <table class="book-table">
+                {{-- CATATAN: Jika ada harga, tambah kolom Harga, Jumlah, Subtotal --}}
                 <thead>
                     <tr>
                         <th style="width: 30px;">No</th>
                         <th>Detail Buku</th>
                         <th>Kode</th>
                         <th>Kondisi</th>
+                        {{-- <th style="text-align: right;">Harga</th>
+                        <th style="text-align: center;">Jml</th>
+                        <th style="text-align: right;">Subtotal</th> --}}
                     </tr>
                 </thead>
                 <tbody>
@@ -389,6 +393,10 @@
                             </td>
                             <td class="book-code">{{ $detail->book->book_code }}</td>
                             <td class="book-condition">{{ $detail->condition }}</td>
+                            {{-- CATATAN: Tampilan jika ada unit_price, quantity, subtotal di detail --}}
+                            {{-- <td style="text-align: right;">Rp {{ number_format($detail->unit_price ?? 0, 0, ',', '.') }}</td>
+                            <td style="text-align: center;">{{ $detail->quantity ?? 1 }}</td>
+                            <td style="text-align: right;">Rp {{ number_format($detail->subtotal ?? 0, 0, ',', '.') }}</td> --}}
                         </tr>
                     @endforeach
                 </tbody>
@@ -400,6 +408,11 @@
                 <span class="summary-label">Total Buku Dipinjam</span>
                 <span class="summary-value"><strong>{{ $loan->details->count() }} buku</strong></span>
             </div>
+            {{-- CATATAN: Jika ada total_amount di Loan (total bayar) --}}
+            {{-- <div class="summary-row total">
+                <span class="summary-label">Total Bayar</span>
+                <span class="summary-value"><strong>Rp {{ number_format($loan->total_amount ?? 0, 0, ',', '.') }}</strong></span>
+            </div> --}}
             @if($loan->fine_amount > 0)
                 <div class="summary-row total">
                     <span class="summary-label">Denda</span>

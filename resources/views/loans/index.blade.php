@@ -114,6 +114,9 @@
                                 <span class="text-lg font-black text-rose-600 dark:text-rose-400">
                                     {{ \Carbon\Carbon::parse($loan->due_date)->format('d M Y') }}
                                 </span>
+                                {{-- CATATAN: Jika ada total_amount (sistem berbayar), contoh tampilan: --}}
+                                {{-- <span class="text-[10px] font-bold text-gray-500 uppercase mt-2">Total Bayar</span>
+                                <span class="text-sm font-bold text-gray-700 dark:text-gray-300">Rp {{ number_format($loan->total_amount ?? 0, 0, ',', '.') }}</span> --}}
                             </div>
                         </div>
 
