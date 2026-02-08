@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\BookController;
+use App\Http\Controllers\BookListController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ProfileController;
@@ -20,6 +21,8 @@ Route::middleware('auth')->group(function () {
     Route::resource('categories', CategoryController::class)->except('show')->middleware('role:admin,staff');
     Route::resource('collections', CollectionController::class)->except('create', 'edit', 'update', 'show');
     Route::resource('books', BookController::class)->middleware('role:admin,staff');
+    Route::get('bookList', [BookListController::class, 'index'])->name('bookList.index');
+    Route::get('bookList/{id}', [BookListController::class, 'show'])->name('bookList.show');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

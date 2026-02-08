@@ -30,6 +30,10 @@
                         </x-nav-link>
                     @endif
 
+                    <x-nav-link :href="route('bookList.index')" :active="request()->routeIs('bookList.*')">
+                        {{ __('Book List') }}
+                    </x-nav-link>
+
                     <x-nav-link :href="route('collections.index')" :active="request()->routeIs('collections.*')">
                         {{ __('Collection') }}
                     </x-nav-link>
