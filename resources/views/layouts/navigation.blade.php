@@ -24,6 +24,10 @@
                         <x-nav-link :href="route('categories.index')" :active="request()->routeIs('categories.*')">
                             {{ __('Category') }}
                         </x-nav-link>
+
+                        <x-nav-link :href="route('books.index')" :active="request()->routeIs('books.*')">
+                            {{ __('Book') }}
+                        </x-nav-link>
                     @endif
 
                 </div>
