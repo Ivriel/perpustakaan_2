@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('categories', CategoryController::class)->except('show')->middleware('role:admin,staff');
     Route::resource('collections', CollectionController::class)->except('create', 'edit', 'update', 'show');
     Route::resource('books', BookController::class)->middleware('role:admin,staff');
+    Route::patch('/loans/{loan}/status', [LoanController::class, 'updateStatus'])->name('loans.updateStatus')->middleware('role:admin,staff');
     Route::get('bookList', [BookListController::class, 'index'])->name('bookList.index');
     Route::get('bookList/{id}', [BookListController::class, 'show'])->name('bookList.show');
 

@@ -165,4 +165,50 @@ class LoanController extends Controller
             return back()->with('error', 'Peminjaman gagal: '.$e->getMessage());
         }
     }
+
+    public function updateStatus(Request $request, Loan $loan)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:borrowed,returned,overdue',
+        ]);
+        $newStatus = $validated['status'];
+        // Kalau mau approve jadi borrowed: cek stok dulu
+        if ($newStatus === 'borrowed') {
+            foreach ($loan->details as $detail) {
+                $book = $detail->book;
+                $qtyInLoan = $loan->details->where('book_id', $book->id)->count();
+                if ($book->stock < $qtyInLoan) {
+                    return back()->with('error', "Stok {$book->title} tidak cukup (butuh {$qtyInLoan}).");
+                }
+            }
+        }
+        try {
+            DB::beginTransaction();
+
+            if ($newStatus === 'borrowed') {
+                foreach ($loan->details as $detail) {
+                    $detail->book->decrement('stock');
+                }
+                $loan->update(['status' => 'borrowed']);
+            } elseif ($newStatus === 'returned') {
+                foreach ($loan->details as $detail) {
+                    $detail->book->increment('stock');
+                }
+                $loan->update([
+                    'status' => 'returned',
+                    'return_date' => now(),
+                ]);
+            } else {
+                $loan->update(['status' => $newStatus]);
+            }
+
+            DB::commit();
+
+            return back()->with('success', 'Status peminjaman diubah.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return back()->with('error', 'Gagal: '.$e->getMessage());
+        }
+    }
 }
